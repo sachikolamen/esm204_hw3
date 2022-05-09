@@ -137,7 +137,13 @@ CS_sq <- CS_agg(10)
 PS_sq <- 0.5*10*Q0
 
 # Calculate environmental cost under status quo
-env_cost_sq <- P0*Q0
+# Need to find slope of supply curve to find supply curve (we know y-intercept is 0)
+# Slope = price/quantity (we know supply curve intersects aggregate demand curve @ 10 cents)
+supply_slope <- 10/Q0
+
+P_env <- MEC*Q0
+
+env_cost_sq <- P_env*Q0*0.5
 ```
 **Q at status quo:** `r Q0`
 
