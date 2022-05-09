@@ -1,0 +1,209 @@
+---
+title: "HW 3"
+author: "Sachiko Lamen"
+date: "5/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(rootSolve)
+library(thematic)
+library(scales)
+library(equatiomatic)
+```
+
+```{r}
+# Read in data and clean 
+data <- read_csv(here("data",'HW3_data.csv')) %>%
+  select(-1) %>% 
+  clean_names()
+
+# Make income a variable, not a column
+data_long <- data %>% 
+  pivot_longer(cols = c(q_low_kwh, q_high_kwh),
+               names_to = 'income_level',
+               values_to = 'kwh') %>% 
+  mutate(income_level = case_when(income_level == 'q_low_kwh' ~ 'low',
+                   income_level == 'q_high_kwh' ~ 'high'))
+```
+
+## 1. One kWh of electricity emits 0.85 lbs of $CO_2$. Assuming the interim SCC correctly reflects the total social cost of one metric ton of $CO2$, what is the marginal externality cost per kWh of electricity?
+
+```{r}
+# Calculate MEC of carbon, assuming SCC = $51/metric ton, 1 kWh = 0.85lbs CO2
+MEC <- (0.85*51)/2204.62
+```
+
+MEC is $`r round(MEC, 2)` per kWh
+
+## 2. What is the aggregate monthly demand curve for electricity? What is the supply curve for electricity? What is the "benefit" to consumers under the status quo? What is the "benefit" to producers under the status quo? What is the environmental cost under the status quo?
+
+```{r}
+# Create linear models for low demand
+demand_low <- lm(price_cents ~ kwh, income_level == "low", data = data_long)
+low <- extract_eq(model = demand_low, use_coefs = TRUE, coef_digits = 5)
+
+# Create linear models for high demand
+demand_high <- lm(price_cents ~ kwh, income_level == "high", data = data_long)
+high <- extract_eq(model = demand_high, use_coefs = TRUE, coef_digits = 5)
+
+# need to rearrange the parameter to get Q(P)! 
+# Qgg = Qlow(P) + Qhigh(P) 
+
+# Importantly, since they-intercepts are different, we know that Qagg(P) will have a kink. I include an ifelse() statement to take
+# care of the kink.
+
+# define a function for demand 
+demand <- function(price_cents, model){
+  q <- (price_cents - model$coefficients[[1]])/model$coefficients[[2]]
+  q <- ifelse(q < 0, 0, q)
+  return(q)
+}
+
+# Find aggregate demand for each P value
+demand_agg <- function(price_cents){
+  q <- demand(price_cents, demand_low) + demand(price_cents, demand_high)
+  return(q)
+}
+
+# Set price vector (0, 30)
+price = seq(0, 30, length.out = 100)
+# Define aggregate quantity
+kwh <- map(price, demand_agg) %>% unlist()
+
+# Make data frame of  price and quantity values for aggregate curve
+data_agg <- tibble(kwh = kwh, price = price)
+
+# Create linear model for aggregate demand
+agg_d_lm <- lm(price ~ kwh, data = data_agg)
+agg <- extract_eq(model = agg_d_lm, use_coefs = TRUE, coef_digits = 5)
+agg_intercept <- agg_d_lm$coefficients[[1]]
+agg_slope <- agg_d_lm$coefficients[[2]]
+
+# Supply
+P = 10
+
+data %>%
+  mutate(d_low = predict(demand_low)) %>%
+  mutate(d_high = predict(demand_high)) %>%
+  ggplot() +
+  geom_point(aes(q_low_kwh, price_cents), color = "green") + 
+  geom_line(aes(q_low_kwh, d_low), color = "green") +
+  geom_point(aes(q_high_kwh, price_cents), color = "blue") +
+  geom_line(aes(q_high_kwh, d_high), color = "blue") +
+  geom_line(data = data_agg, aes(kwh, price), color = "red") +
+  geom_hline(yintercept = 10) +
+  theme_minimal() +
+  labs( x = "Electricity (kWh)", y = "Price (cents/kWh)")
+
+```
+
+**Figure 1.** Low demand is represented by the green line. High demand is represented by the blue line. Aggregate demand is represented by the red line.
+
+**Low demand:** `r low`
+
+**High demand:** `r high`
+
+**Aggregate demand: ** `r agg`
+
+**Supply** $P = 10$ *(note that price is in cents/kWh)*
+
+```{r}
+# Write CS function
+CS <- function(price_cents, model){
+  q <- demand(price_cents, model)
+  cs <- 0.5*(model$coefficients[[1]] - price_cents)*q
+  return(cs)
+}
+
+CS_agg <- function(price_cents){
+  cs <- CS(price_cents, demand_low) + CS(price_cents, demand_high)
+  return(cs)
+}
+
+# Find Q and P at intersection of aggregate demand and supply curves 
+
+Q0 <- agg_intercept/(10 + agg_slope)
+P0 <- 10
+
+# Calculate "benefit" to consumers under status quo
+CS_sq <- CS_agg(10)
+
+# Calculate "benefit" to producers under status quo
+PS_sq <- 0.5*10*Q0
+
+# Calculate environmental cost under status quo
+env_cost_sq <- P0*Q0
+```
+**Q at status quo:** `r Q0`
+
+**P at status quo:** `r P0`
+
+**Benefit to Consumers (status quo):** `r CS_sq`
+
+**Benefit to Producers (status quo):** `r PS_sq`
+
+**Environmental Cost (status quo):** `r env_cost_sq`
+
+3. How is the current consumer benefit divided between "high" and "low" income consumers?
+
+```{r}
+CS_low <- CS(10, demand_low) 
+
+CS_high <- CS(10, demand_high)
+```
+At status quo, **high income** consumers benefit `r CS_high` while **low income** consumers benefit only `r CS_low`. Overall, the **difference in benefit** is `r CS_high - CS_low`
+
+4. Derive the optimal electricity tax (in cents/kWh) using the interim SCC. Noting that recent research has show th epoor face a disproportionate share of the impacts from climate change, assume that the climate externailty is borne entirely by the "low" income group. What would be the effects of this tax on:
+a) amount of electricity produced and consumed
+b) price of electricity
+c) overall welfare of "high" income consumers
+d) overall welfare of "low" income consumers
+e) power suppliers
+f) total environmental damage
+g) total tax revenue generated
+
+5. Now, assume that all revenue from the electricity tax will be redistributed to the consumers in
+proportion to their pre-tax consumption. For example, if 80% of the electricity was consumed
+by “high” income consumers, then they get 80% of the tax revenue. Additionally, consider the
+fact that current scientific evidence suggests the true SCC may be much higher than $51. For
+a range of SCC values ($51, $75, $100, $125, and $150 per metric ton of CO2), calculate the
+effects of an SCC-based electricity tax on:
+(a) Overall welfare of “high” income consumers
+(b) Overall welfare of “low” income consumers
+(c) Electricity producers
+
+
+6. Suppose the “high” income group has access to expensive home solar generation. This lowers
+the electricity demand curve for the “high” income group by half (vertically). Under this new
+demand:
+(a) What is total electricity consumption?
+(b) What is the total environmental externality?
+(c) What value of the electricity tax makes the total environmental damage the same as the
+damage when solar panels are available to the high income group?
+
+```{r}
+demand_low_flip <- lm(kwh ~ price_cents, income_level=='low', 
+                 data = data_long) 
+demand_high_flip <- lm(kwh ~ price_cents, income_level=='high',
+                  data = data_long) 
+kwh_agg_int <- (demand_low_flip$coefficients[1]+
+                  demand_high_flip$coefficients[1])
+kwh_agg_slope <- (demand_low_flip$coefficients[2] +
+                    demand_high_flip$coefficients[2])
+
+demand_agg_p <- function(price_cents){kwh_agg_int +
+    kwh_agg_slope*(price_cents)}
+
+demand_agg_int <- kwh_agg_int/-kwh_agg_slope
+
+demand_agg_slope <- 1/kwh_agg_slope
+# Aggregate demand function is P = 30.5 - 0.000039Q
+
+demand_agg <- function(kwh){demand_agg_int + demand_agg_slope*kwh}
+```
+
