@@ -1,6 +1,6 @@
 ---
 title: "HW 3"
-author: "Sachiko Lamen"
+author: "Sachiko Lamen and Chase Tarr"
 date: "5/8/2022"
 output: html_document
 ---
@@ -78,6 +78,7 @@ kwh <- map(price, demand_agg) %>% unlist()
 # Make data frame of  price and quantity values for aggregate curve
 data_agg <- tibble(kwh = kwh, price = price)
 
+
 # Create linear model for aggregate demand
 agg_d_lm <- lm(price ~ kwh, data = data_agg)
 agg <- extract_eq(model = agg_d_lm, use_coefs = TRUE, coef_digits = 5)
@@ -85,7 +86,19 @@ agg_intercept <- agg_d_lm$coefficients[[1]]
 agg_slope <- agg_d_lm$coefficients[[2]]
 
 # Supply
-P = 10
+supply <- demand_agg(10)
+# 536719.5 at $0.10
+supply_slope <- 10/supply
+#0.0000186
+
+# supply curve is going to pass through agg demand curve at $0.10/kwh, the slope of supply will be 1.83x10^-5 x q
+P <- 10
+
+# Creating MPC function
+MPC <- function(q){
+  L <- (q*MPC-supply_slope)
+  return(L)
+}
 
 data %>%
   mutate(d_low = predict(demand_low)) %>%
@@ -133,11 +146,23 @@ P0 <- 10
 # Calculate "benefit" to consumers under status quo
 CS_sq <- CS_agg(10)
 
+CS_sq_ct <- 0.5*supply*(0.305 - 0.1)
+CS_sq_ct
+# consumer benefit : $55,013.75
+
 # Calculate "benefit" to producers under status quo
 PS_sq <- 0.5*10*Q0
 
+PS_sq_ct <- 0.5*supply*.1
+PS_sq_ct
+# producer benefit: $26,106
+
 # Calculate environmental cost under status quo
 env_cost_sq <- P0*Q0
+
+env_cost_sq_ct <- MEC*supply
+env_cost_sq_ct
+# environmental cost: $10,265
 ```
 **Q at status quo:** `r Q0`
 
@@ -158,8 +183,24 @@ CS_high <- CS(10, demand_high)
 ```
 At status quo, **high income** consumers benefit `r CS_high` while **low income** consumers benefit only `r CS_low`. Overall, the **difference in benefit** is `r CS_high - CS_low`
 
-4. Derive the optimal electricity tax (in cents/kWh) using the interim SCC. Noting that recent research has show th epoor face a disproportionate share of the impacts from climate change, assume that the climate externailty is borne entirely by the "low" income group. What would be the effects of this tax on:
+4. Derive the optimal electricity tax (in cents/kWh) using the interim SCC. Noting that recent research has show the poor face a disproportionate share of the impacts from climate change, assume that the climate externality is born entirely by the "low" income group. What would be the effects of this tax on:
+```{r}
+# know that P* = 10
+optimal_tax <- MEC
+# taxing the consumer (household) [P = mQ + b]
+Pagg <- map(price, demand_agg) %>% unlist()
+numba_4_p <- tibble(Pagg = Pagg, price = price)
+tax_line_price <- numba_4_p - MEC
+Qagg <- map(kwh, demand_agg) %>% unlist
+numba_4_q <- tibble(Qagg = Qagg, kwh=kwh)
+tax_line_amount <- numba_4_q - MEC
+```
+
 a) amount of electricity produced and consumed
+```{r}
+#elec_prod <- MPC()
+```
+
 b) price of electricity
 c) overall welfare of "high" income consumers
 d) overall welfare of "low" income consumers
@@ -167,12 +208,13 @@ e) power suppliers
 f) total environmental damage
 g) total tax revenue generated
 
-5. Now, assume that all revenue from the electricity tax will be redistributed to the consumers in
-proportion to their pre-tax consumption. For example, if 80% of the electricity was consumed
+5. Now, assume that all revenue from the electricity tax will be redistributed to the consumers in proportion to their pre-tax consumption. For example, if 80% of the electricity was consumed
 by “high” income consumers, then they get 80% of the tax revenue. Additionally, consider the
 fact that current scientific evidence suggests the true SCC may be much higher than $51. For
 a range of SCC values ($51, $75, $100, $125, and $150 per metric ton of CO2), calculate the
 effects of an SCC-based electricity tax on:
+
+
 (a) Overall welfare of “high” income consumers
 (b) Overall welfare of “low” income consumers
 (c) Electricity producers
