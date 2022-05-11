@@ -58,15 +58,15 @@ high <- extract_eq(model = demand_high, use_coefs = TRUE, coef_digits = 5)
 # care of the kink.
 
 # define a function for demand 
-demand <- function(price_cents, model){
-  q <- (price_cents - model$coefficients[[1]])/model$coefficients[[2]]
+demand <- function(p, model){
+  q <- (p - model$coefficients[[1]])/model$coefficients[[2]]
   q <- ifelse(q < 0, 0, q)
   return(q)
 }
 
 # Find aggregate demand for each P value
-demand_agg <- function(price_cents){
-  q <- demand(price_cents, demand_low) + demand(price_cents, demand_high)
+demand_agg <- function(p){
+  q <- demand(p, demand_low) + demand(p, demand_high)
   return(q)
 }
 
@@ -200,14 +200,14 @@ a) amount of electricity produced and consumed
 #elec_prod <- MPC()
 tax <- 1.97
 
-demand_tax <- function(price_cents, model){
-  q <- (price_cents - model$coefficients[[1]])/model$coefficients[[2]]
+demand_tax <- function(p, model){
+  q <- (p - (model$coefficients[[1]]-tax))/model$coefficients[[2]]
   q <- ifelse(q < 0, 0, q)
   return(q)
 }
 
-demand_agg_tax <- function(price_cents){
-  q <- demand_tax(price_cents, demand_low) + demand_tax(price_cents, demand_high)
+demand_agg_tax <- function(p){
+  q <- demand_tax(p, demand_low) + demand_tax(p, demand_high)
   return(q)
 }
 
@@ -217,16 +217,44 @@ uniroot(function(p)
   demand_agg_tax(p) - supply_function(p),
   interval = c(0,20))
 
-p_new <- 9.32
-
-q_new <- demand_agg_tax(p_new)
 
 
 ```
 
+
+
+
+
 b) price of electricity
+```{r}
+p_new_a <- 9.32
+
+q_new_a <- demand_agg_tax(p_new)
+#new equilibrium price and quantities
+demand_change_tax <- supply-q_new_a
+price_change_tax <- 10 - p_new_a
+```
+
 c) overall welfare of "high" income consumers
+```{r}
+demand_high_tax <- demand_tax(p_new_a, demand_high)
+high_welfare_tax <- (0.5*(0.3161-0.0197-0.0932)*demand_high_tax)-(demand_high_tax * 0.0197)
+overall_welfare_high_cons <- CS_high - high_welfare_tax
+```
+#find change from original high income consumer surplus - welfare high tax
+
 d) overall welfare of "low" income consumers
+```{r}
+original_welfare_low <- CS_low-env_cost_sq_ct
+demand_tax_low <- demand(p_new_a, demand_low)
+
+env_cost_tax <- MEC*q_new_a
+
+welfare_tax_low <- (0.5*(0.2337-0.0197-0.0932)*demand_tax_low)-(demand_tax_low*0.0197)-env_cost_tax
+
+welfare_low_change<- original_welfare_low-welfare_tax_low
+```
+
 e) power suppliers
 f) total environmental damage
 g) total tax revenue generated
