@@ -90,7 +90,10 @@ supply <- demand_agg(10)
 # 536719.5 at $0.10
 supply_slope <- 10/supply
 #0.0000186
-
+supply_function <- function(p){
+  q <- p/supply_slope
+  return(q)
+}
 # supply curve is going to pass through agg demand curve at $0.10/kwh, the slope of supply will be 1.83x10^-5 x q
 P <- 10
 
@@ -140,25 +143,25 @@ CS_agg <- function(price_cents){
 
 # Find Q and P at intersection of aggregate demand and supply curves 
 
-Q0 <- agg_intercept/(10 + agg_slope)
+Q0 <- agg_intercept/(10 + agg_intercept)
 P0 <- 10
 
 # Calculate "benefit" to consumers under status quo
-CS_sq <- CS_agg(10)
+
 
 CS_sq_ct <- 0.5*supply*(0.305 - 0.1)
 CS_sq_ct
 # consumer benefit : $55,013.75
 
 # Calculate "benefit" to producers under status quo
-PS_sq <- 0.5*10*Q0
+
 
 PS_sq_ct <- 0.5*supply*.1
 PS_sq_ct
 # producer benefit: $26,106
 
 # Calculate environmental cost under status quo
-env_cost_sq <- P0*Q0
+
 
 env_cost_sq_ct <- MEC*supply
 env_cost_sq_ct
@@ -168,11 +171,11 @@ env_cost_sq_ct
 
 **P at status quo:** `r P0`
 
-**Benefit to Consumers (status quo):** `r CS_sq`
+**Benefit to Consumers (status quo):** `r CS_sq_ct`
 
-**Benefit to Producers (status quo):** `r PS_sq`
+**Benefit to Producers (status quo):** `r PS_sq_ct`
 
-**Environmental Cost (status quo):** `r env_cost_sq`
+**Environmental Cost (status quo):** `r env_cost_sq_ct`
 
 3. How is the current consumer benefit divided between "high" and "low" income consumers?
 
@@ -188,17 +191,37 @@ At status quo, **high income** consumers benefit `r CS_high` while **low income*
 # know that P* = 10
 optimal_tax <- MEC
 # taxing the consumer (household) [P = mQ + b]
-Pagg <- map(price, demand_agg) %>% unlist()
-numba_4_p <- tibble(Pagg = Pagg, price = price)
-tax_line_price <- numba_4_p - MEC
-Qagg <- map(kwh, demand_agg) %>% unlist
-numba_4_q <- tibble(Qagg = Qagg, kwh=kwh)
-tax_line_amount <- numba_4_q - MEC
+
+
 ```
 
 a) amount of electricity produced and consumed
 ```{r}
 #elec_prod <- MPC()
+tax <- 1.97
+
+demand_tax <- function(price_cents, model){
+  q <- (price_cents - model$coefficients[[1]])/model$coefficients[[2]]
+  q <- ifelse(q < 0, 0, q)
+  return(q)
+}
+
+demand_agg_tax <- function(price_cents){
+  q <- demand_tax(price_cents, demand_low) + demand_tax(price_cents, demand_high)
+  return(q)
+}
+
+# calculate when the aggregate demand intersects the supply curve
+
+uniroot(function(p)
+  demand_agg_tax(p) - supply_function(p),
+  interval = c(0,20))
+
+p_new <- 9.32
+
+q_new <- demand_agg_tax(p_new)
+
+
 ```
 
 b) price of electricity
