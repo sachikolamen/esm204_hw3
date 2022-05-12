@@ -2,7 +2,9 @@
 title: "HW 3"
 author: "Sachiko Lamen and Chase Tarr"
 date: "5/8/2022"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE, message = FALSE, warning = FALSE}
@@ -113,12 +115,15 @@ data %>%
   geom_line(aes(q_high_kwh, d_high), color = "blue") +
   geom_line(data = data_agg, aes(kwh, price), color = "red") +
   geom_hline(yintercept = 10) +
+  geom_abline(color = "darkorchid4",
+              intercept = 0,
+              slope = supply_slope)
   theme_minimal() +
   labs( x = "Electricity (kWh)", y = "Price (cents/kWh)")
 
 ```
 
-**Figure 1.** Low demand is represented by the green line. High demand is represented by the blue line. Aggregate demand is represented by the red line.
+**Figure 1.** Low demand is represented by the green line. High demand is represented by the blue line. Aggregate demand is represented by the red line. Supply curve is represented by purple (aka...darkorchid4 ;))
 
 **Low demand:** `r low`
 
@@ -216,9 +221,6 @@ demand_agg_tax <- function(p){
 uniroot(function(p)
   demand_agg_tax(p) - supply_function(p),
   interval = c(0,20))
-
-
-
 ```
 
 
@@ -229,7 +231,7 @@ b) price of electricity
 ```{r}
 p_new_a <- 9.32
 
-q_new_a <- demand_agg_tax(p_new)
+q_new_a <- demand_agg_tax(p_new_a)
 #new equilibrium price and quantities
 demand_change_tax <- supply-q_new_a
 price_change_tax <- 10 - p_new_a
@@ -334,10 +336,87 @@ high_cs75 <- (0.5*high_d75*(demand_high$coefficients[1]-tax75-p_75$root))/100
 
 high_welfare_75 <- high_cs75 - (high_d75*0.0289) + high_percent*rev_loss75
 
-ps_75 <- (05*demand_agg_75(p_75$root/100))
-
-
+ps_75 <- (0.5*demand_75*(p_75$root/100))
 ```
+
+# 100
+```{r}
+agg_d_100 <- function(p){
+  q <- scc_d(p, demand_low, 2) + scc_d(p, demand_high, 2)
+  return(q)
+}
+
+p_100 <- uniroot(function(p)
+  agg_d_100(p) - supply_function(p),
+  interval = c(0,20))
+
+demand_100 <- agg_d_100(p_100$root)
+rev_loss100 <- demand_100*.0386
+low_d_100 <- scc_d(p_100$root,demand_low,2)
+cs_low100 <- (0.5*low_d_100*(demand_low$coefficients[1]-tax75 - p_100$root))/100
+
+welfare_low100 <- cs_low100 - (low_d_100*0.0386) - rev_loss100 + low_percent*rev_loss100
+
+high_d100 <- scc_d(p_100$root,demand_high,2)
+high_cs100 <- (0.5*high_d100*(demand_high$coefficients[1]-tax100-p_100$root))/100
+
+high_welfare_100 <- high_cs100 - (high_d100*0.0386) + high_percent*rev_loss100
+
+ps_100 <- (0.5*demand_100*(p_100$root/100))
+```
+
+#125
+```{r}
+agg_d_125 <- function(p){
+  q <- scc_d(p, demand_low, 3) + scc_d(p, demand_high, 3)
+  return(q)
+}
+
+p_125 <- uniroot(function(p)
+  agg_d_125(p) - supply_function(p),
+  interval = c(0,20))
+
+demand_125 <- agg_d_125(p_125$root)
+rev_loss125 <- demand_125*.0482
+low_d_125 <- scc_d(p_125$root,demand_low,3)
+cs_low125 <- (0.5*low_d_125*(demand_low$coefficients[1]-tax125 - p_125$root))/100
+
+welfare_low125 <- cs_low125 - (low_d_125*0.0482) - rev_loss125 + low_percent*rev_loss125
+
+high_d125 <- scc_d(p_125$root,demand_high,3)
+high_cs125 <- (0.5*high_d125*(demand_high$coefficients[1]-tax125-p_125$root))/100
+
+high_welfare_125 <- high_cs125 - (high_d125*0.0482) + high_percent*rev_loss125
+
+ps_125 <- (0.5*demand_125*(p_125$root/100))
+```
+
+#150
+```{r}
+agg_d_150 <- function(p){
+  q <- scc_d(p, demand_low, 4) + scc_d(p, demand_high, 4)
+  return(q)
+}
+
+p_150 <- uniroot(function(p)
+  agg_d_150(p) - supply_function(p),
+  interval = c(0,20))
+
+demand_150 <- agg_d_150(p_150$root)
+rev_loss150 <- demand_150*.0578
+low_d_150 <- scc_d(p_150$root,demand_low,4)
+cs_low150 <- (0.5*low_d_150*(demand_low$coefficients[1]-tax150 - p_150$root))/100
+
+welfare_low150 <- cs_low150 - (low_d_150*0.0578) - rev_loss150 + low_percent*rev_loss150
+
+high_d150 <- scc_d(p_150$root,demand_high,4)
+high_cs150 <- (0.5*high_d150*(demand_high$coefficients[1]-tax150-p_150$root))/100
+
+high_welfare_150 <- high_cs150 - (high_d150*0.0578) + high_percent*rev_loss150
+
+ps_150 <- (0.5*demand_150*(p_150$root/100))
+```
+
 
 (b) Overall welfare of “low” income consumers
 (c) Electricity producers
@@ -352,23 +431,31 @@ demand:
 damage when solar panels are available to the high income group?
 
 ```{r}
-demand_low_flip <- lm(kwh ~ price_cents, income_level=='low', 
-                 data = data_long) 
-demand_high_flip <- lm(kwh ~ price_cents, income_level=='high',
-                  data = data_long) 
-kwh_agg_int <- (demand_low_flip$coefficients[1]+
-                  demand_high_flip$coefficients[1])
-kwh_agg_slope <- (demand_low_flip$coefficients[2] +
-                    demand_high_flip$coefficients[2])
+high_solar_d<- function(p){
+  q <- (p - (demand_high$coefficients[[1]]-1.97)/2)/demand_high$coefficients[[2]]
+  q <- ifelse(q<0,0,q)
+  return(q)
+}
 
-demand_agg_p <- function(price_cents){kwh_agg_int +
-    kwh_agg_slope*(price_cents)}
+low_solar_d <- function(p){
+  q <- (p - (demand_low$coefficients[[1]]-1.97))/demand_low$coefficients[[2]]
+  q <- ifelse(q<0,0,q)
+  return(q)
+}
+agg_solar_d <- function(p){
+  q <- high_solar_d(p) + low_solar_d(p)
+  return(q)
+}
+solar_penis <- uniroot(function(p)
+  agg_solar_d(p) - supply_function(p),
+        interval = c(0,20))
+p_solar <- solar_penis$root
+solar_d <- agg_solar_d(p_solar)
 
-demand_agg_int <- kwh_agg_int/-kwh_agg_slope
+solar_env_cost <- solar_d*0.0197
 
-demand_agg_slope <- 1/kwh_agg_slope
-# Aggregate demand function is P = 30.5 - 0.000039Q
-
-demand_agg <- function(kwh){demand_agg_int + demand_agg_slope*kwh}
+finaltax <- (.0197/(solar_env_cost/env_cost_tax))
 ```
+
+
 
