@@ -3,9 +3,9 @@ title: "HW 3"
 author: "Sachiko Lamen and Chase Tarr"
 date: "5/8/2022"
 output:
-  pdf_document: default
   html_document:
     code_folding: hide
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE, message = FALSE, warning = FALSE}
@@ -44,7 +44,7 @@ MEC is $`r round(MEC, 2)` per kWh
 
 ## 2. What is the aggregate monthly demand curve for electricity? What is the supply curve for electricity? What is the "benefit" to consumers under the status quo? What is the "benefit" to producers under the status quo? What is the environmental cost under the status quo?
 
-```{r}
+```{r, include=FALSE}
 # Create linear models for low demand
 demand_low <- lm(price_cents ~ kwh, income_level == "low", data = data_long)
 low <- extract_eq(model = demand_low, use_coefs = TRUE, coef_digits = 5)
@@ -93,6 +93,10 @@ MPC <- function(q){
   L <- (q*MPC-supply_slope)
   return(L)
 }
+```
+
+
+```{r, warning = FALSE}
 data %>%
   mutate(d_low = predict(demand_low)) %>%
   mutate(d_high = predict(demand_high)) %>%
@@ -189,8 +193,9 @@ uniroot(function(p)
   demand_agg_tax(p) - supply_function(p),
   interval = c(0,20))
 
-q_new_a <- demand_agg_tax(p_new_a)
 p_new_a <- 9.32
+q_new_a <- demand_agg_tax(p_new_a)
+
 
 #new equilibrium price and quantities
 demand_change_tax <- supply-q_new_a
