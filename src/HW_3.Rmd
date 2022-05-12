@@ -334,7 +334,7 @@ high_cs75 <- (0.5*high_d75*(demand_high$coefficients[1]-tax75-p_75$root))/100
 
 high_welfare_75 <- high_cs75 - (high_d75*0.0289) + high_percent*rev_loss75
 
-ps_75 <- (05*demand_75(p_75$root/100))
+ps_75 <- (05*demand_agg_75(p_75$root/100))
 
 
 ```
