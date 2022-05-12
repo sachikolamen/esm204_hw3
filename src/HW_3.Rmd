@@ -238,26 +238,42 @@ price_change_tax <- 10 - p_new_a
 c) overall welfare of "high" income consumers
 ```{r}
 demand_high_tax <- demand_tax(p_new_a, demand_high)
+cs_high_tax <- (0.5*(demand_high$coefficients[1]-tax-p_new_a)*demand_high_tax/100)
 high_welfare_tax <- (0.5*(0.3161-0.0197-0.0932)*demand_high_tax)-(demand_high_tax * 0.0197)
-overall_welfare_high_cons <- CS_high - high_welfare_tax
+overall_welfare_high_cons <- cs_high_tax - high_welfare_tax
 ```
 #find change from original high income consumer surplus - welfare high tax
 
 d) overall welfare of "low" income consumers
 ```{r}
 original_welfare_low <- CS_low-env_cost_sq_ct
-demand_tax_low <- demand(p_new_a, demand_low)
+demand_tax_low <- demand_tax(p_new_a, demand_low)
 
 env_cost_tax <- MEC*q_new_a
 
-welfare_tax_low <- (0.5*(0.2337-0.0197-0.0932)*demand_tax_low)-(demand_tax_low*0.0197)-env_cost_tax
+cs_low_tax <- (0.5*(demand_low$coefficients[1]-tax-p_new_a)*demand_tax_low)/100
+
+welfare_tax_low <- cs_low_tax-(demand_tax_low*0.0197)-env_cost_tax
 
 welfare_low_change<- original_welfare_low-welfare_tax_low
 ```
 
 e) power suppliers
+```{r}
+ps_tax <- 0.5*q_new_a*0.0932
+ps_change <- PS_sq_ct-ps_tax
+```
+
 f) total environmental damage
+```{r}
+env_dam <- env_cost_sq_ct-env_cost_tax
+```
+
 g) total tax revenue generated
+```{r}
+tax_rev <- MEC*q_new_a
+```
+
 
 5. Now, assume that all revenue from the electricity tax will be redistributed to the consumers in proportion to their pre-tax consumption. For example, if 80% of the electricity was consumed
 by “high” income consumers, then they get 80% of the tax revenue. Additionally, consider the
@@ -267,6 +283,62 @@ effects of an SCC-based electricity tax on:
 
 
 (a) Overall welfare of “high” income consumers
+```{r}
+value <- 2204.6/0.86
+tax75 <- 75/(value)
+tax100 <- 100/value
+tax125 <- 125/value
+tax150 <- 150/value
+```
+
+# vector season
+```{r}
+SCC_vec <- c(2.89,3.86,4.82,5.78)
+
+low_percent <- demand(10,demand_low)/supply
+high_percent <- demand(10, demand_high)/supply
+
+low_distr_51 <- low_percent*tax_rev
+low_welfare_51 <- low_distr_51 + welfare_tax_low
+
+high_distr_51 <- high_percent*tax_rev
+high_welfare_51 <- high_distr_51 + welfare_tax_low
+```
+
+```{r}
+# create a new function to find p values of 75-150
+scc_d <- function(p, model, scc){
+  q <- (p-(model$coefficients[[1]]-SCC_vec[scc]))/model$coefficients[[2]]
+  q <- ifelse(q<0,0,q)
+  return(q)
+}
+
+agg_d_75 <- function(p){
+  q <- scc_d(p, demand_low, 1) + scc_d(p, demand_high, 1)
+  return(q)
+}
+
+p_75 <- uniroot(function(p)
+  agg_d_75(p) - supply_function(p),
+  interval = c(0,20))
+
+demand_75 <- agg_d_75(p_75$root)
+rev_loss75 <- demand_75*.0289
+low_d_75 <- scc_d(p_75$root,demand_low,1)
+cs_low75 <- (0.5*low_d_75*(demand_low$coefficients[1]-tax75 - p_75$root))/100
+
+welfare_low75 <- cs_low75 - (low_d_75*0.0289) - rev_loss75 + low_percent*rev_loss75
+
+high_d75 <- scc_d(p_75$root,demand_high,1)
+high_cs75 <- (0.5*high_d75*(demand_high$coefficients[1]-tax75-p_75$root))/100
+
+high_welfare_75 <- high_cs75 - (high_d75*0.0289) + high_percent*rev_loss75
+
+ps_75 <- (05*demand_75(p_75$root/100))
+
+
+```
+
 (b) Overall welfare of “low” income consumers
 (c) Electricity producers
 
